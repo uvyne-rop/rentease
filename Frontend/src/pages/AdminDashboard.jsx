@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
+import { getApiUrl } from '../utils/api'
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth()
@@ -38,8 +39,8 @@ export default function AdminDashboard() {
     setDataLoading(true)
     try {
       const [propsRes, usersRes] = await Promise.all([
-        fetch('/api/admin/properties', { credentials: 'include' }),
-        fetch('/api/admin/users', { credentials: 'include' })
+        fetch(getApiUrl('/api/admin/properties'), { credentials: 'include' }),
+        fetch(getApiUrl('/api/admin/users'), { credentials: 'include' })
       ])
       
       if (propsRes.status === 403 || usersRes.status === 403) {
@@ -78,7 +79,7 @@ export default function AdminDashboard() {
       const formData = new FormData()
       formData.append('file', file)
       
-      const res = await fetch('/api/admin/upload', {
+      const res = await fetch(getApiUrl('/api/admin/upload'), {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -139,8 +140,8 @@ export default function AdminDashboard() {
     e.preventDefault()
     try {
       const url = editingProperty 
-        ? `/api/admin/properties/${editingProperty.id}`
-        : '/api/admin/properties'
+        ? getApiUrl(`/api/admin/properties/${editingProperty.id}`)
+        : getApiUrl('/api/admin/properties')
       const method = editingProperty ? 'PUT' : 'POST'
       
       const res = await fetch(url, {
@@ -167,7 +168,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this property?')) return
     
     try {
-      const res = await fetch(`/api/admin/properties/${id}`, {
+      const res = await fetch(getApiUrl(`/api/admin/properties/${id}`), {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -186,7 +187,7 @@ export default function AdminDashboard() {
 
   const toggleUserAdmin = async (uid, currentStatus) => {
     try {
-      const res = await fetch(`/api/admin/users/${uid}`, {
+      const res = await fetch(getApiUrl(`/api/admin/users/${uid}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

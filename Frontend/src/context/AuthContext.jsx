@@ -2,13 +2,16 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null)
 
+// Get API URL from environment or use relative path for development
+const API_URL = import.meta.env.VITE_API_URL || ''
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const fetchMe = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me', { credentials: 'include' })
+      const res = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' })
       const data = await res.json()
       setUser(data.user)
     } catch {
@@ -21,7 +24,7 @@ export function AuthProvider({ children }) {
   useEffect(() => { fetchMe() }, [fetchMe])
 
   const login = async (identifier, password) => {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -34,7 +37,7 @@ export function AuthProvider({ children }) {
   }
 
   const register = async (username, email, password) => {
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -47,12 +50,12 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' })
     setUser(null)
   }
 
   const verifyEmail = async (email, code) => {
-    const res = await fetch('/api/auth/verify-email', {
+    const res = await fetch(`${API_URL}/api/auth/verify-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -65,7 +68,7 @@ export function AuthProvider({ children }) {
   }
 
   const resendVerification = async (email) => {
-    const res = await fetch('/api/auth/resend-verification', {
+    const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -76,7 +79,7 @@ export function AuthProvider({ children }) {
   }
 
   const resetPassword = async (email) => {
-    const res = await fetch('/api/auth/reset-password', {
+    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -94,3 +97,4 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+export { API_URL }

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { LayoutGrid, List } from 'lucide-react'
 import SearchBar from '../components/SearchBar'
 import PropertyCard from '../components/PropertyCard'
+import { getApiUrl } from '../utils/api'
 
 const SORT_OPTIONS = [
   { value: 'newest',     label: 'Newest' },
@@ -22,7 +23,7 @@ export default function ListingsPage() {
     setLoading(true)
     const params = new URLSearchParams(searchParams)
     params.set('sort', sort)
-    fetch(`/api/properties?${params.toString()}`, { credentials: 'include' })
+    fetch(getApiUrl(`/api/properties?${params.toString()}`), { credentials: 'include' })
       .then(r => r.json())
       .then(d => setProperties(d.properties || []))
       .catch(() => {})

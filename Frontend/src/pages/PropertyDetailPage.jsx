@@ -4,6 +4,7 @@ import {
   MapPin, Bed, Bath, Maximize2, Heart, GitCompare, Share2, Lock,
   ArrowLeft, Phone, Mail, Star, CheckCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { getApiUrl } from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import AuthModal from '../components/AuthModal'
@@ -22,7 +23,7 @@ export default function PropertyDetailPage() {
   const [showPayment, setShowPayment] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/properties/${id}`, { credentials: 'include' })
+    fetch(getApiUrl(`/api/properties/${id}`), { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         setProperty(d.property)
@@ -36,7 +37,7 @@ export default function PropertyDetailPage() {
     if (!user) { setAuthModal('login'); return }
     try {
       const method = isFav ? 'DELETE' : 'POST'
-      const res  = await fetch(`/api/favorites/${id}`, { method, credentials: 'include' })
+      const res  = await fetch(getApiUrl(`/api/favorites/${id}`), { method, credentials: 'include' })
       const data = await res.json()
       if (data.auth_required) { setAuthModal('login'); return }
       setIsFav(!isFav)

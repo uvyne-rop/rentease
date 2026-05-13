@@ -10,7 +10,7 @@ export default function FavoritesPage() {
   const [authModal, setAuthModal] = useState(null)
 
   useEffect(() => {
-    fetch('/api/favorites', { credentials: 'include' })
+    fetch(getApiUrl('/api/favorites'), { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         if (d.auth_required) { setAuthNeeded(true); return }

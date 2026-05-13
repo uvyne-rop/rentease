@@ -5,8 +5,19 @@ from werkzeug.utils import secure_filename
 import sqlite3, os, uuid
 
 app = Flask(__name__)
-app.secret_key = 'rentease-secret-key-change-in-production'
-CORS(app, supports_credentials=True, origins=['http://localhost:5173', 'http://localhost:3000'])
+app.secret_key = os.environ.get('SECRET_KEY', 'rentease-secret-key-change-in-production')
+
+# CORS configuration - allows local development and production URLs
+ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    os.environ.get('FRONTEND_URL', '').strip() or None,
+    os.environ.get('BACKEND_URL', '').strip() or None,
+]
+ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
+
+CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -566,4 +577,4 @@ def serve_upload(filename):
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)

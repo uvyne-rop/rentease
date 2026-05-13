@@ -1,5 +1,23 @@
 {
+  "name": "rent-home-agency",
+  "version": "1.0.0",
+  "description": "Full-stack property rental platform with admin dashboard",
+  "main": "app.py",
+  "scripts": {
+    "dev": "concurrently \"cd Frontend && npm run dev\" \"python3 app.py\"",
+    "build": "cd Frontend && npm run build",
+    "start": "python3 app.py"
+  },
+  "keywords": ["real-estate", "property", "rental", "admin", "dashboard"],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.2"
+    "@tailwindcss/postcss": "^4.2.2",
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.9.0"
   }
 }
+

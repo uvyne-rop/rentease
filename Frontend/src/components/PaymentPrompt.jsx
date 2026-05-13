@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getApiUrl } from '../utils/api'
 import { CreditCard, X } from 'lucide-react'
 
 export default function PaymentModal({ property, onClose }) {
@@ -16,7 +17,7 @@ export default function PaymentModal({ property, onClose }) {
     setError('')
     setMessage('')
     try {
-      const res = await fetch('/api/pay', {
+      const res = await fetch(getApiUrl('/api/pay'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

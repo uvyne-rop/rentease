@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, GitCompare, MapPin, Bed, Bath, Maximize2, Star, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { getApiUrl } from '../utils/api'
 import AuthModal from './AuthModal'
 import PaymentModal from './PaymentPrompt'
 
@@ -33,7 +34,7 @@ export default function PropertyCard({ property, layout = 'grid' }) {
     setFavLoading(true)
     try {
       const method = isFav ? 'DELETE' : 'POST'
-      const res = await fetch(`/api/favorites/${property.id}`, { method, credentials: 'include' })
+      const res = await fetch(getApiUrl(`/api/favorites/${property.id}`), { method, credentials: 'include' })
       const data = await res.json()
       if (data.auth_required) { setAuthModal('login'); return }
       setIsFav(!isFav)
@@ -55,7 +56,7 @@ export default function PropertyCard({ property, layout = 'grid' }) {
     }
     setCompareLoading(true)
     try {
-      const res = await fetch(`/api/compare/${property.id}`, { method: 'POST', credentials: 'include' })
+      const res = await fetch(getApiUrl(`/api/compare/${property.id}`), { method: 'POST', credentials: 'include' })
       const data = await res.json()
       if (data.auth_required) { setAuthModal('login'); return }
       if (data.error) { toast.show(data.error, 'error'); return }

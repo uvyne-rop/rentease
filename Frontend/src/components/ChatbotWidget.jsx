@@ -19,7 +19,7 @@ export default function ChatbotWidget() {
     setError('')
 
     try {
-      const res = await fetch('/api/chatbot', {
+      const res = await fetch(getApiUrl('/api/chatbot'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })

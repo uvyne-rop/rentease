@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getApiUrl } from '../utils/api'
 import { Phone, Mail, MapPin, Send, CheckCircle } from 'lucide-react'
 
 export default function ContactPage() {
@@ -14,7 +15,7 @@ export default function ContactPage() {
     setLoading(true)
     setError('')
     try {
-      const res  = await fetch('/api/contact', {
+      const res  = await fetch(getApiUrl('/api/contact'), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(form),
