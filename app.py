@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, session, send_from_directory
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import sqlite3, os, uuid
+import sqlite3, os, uuid, tempfile
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rentease-secret-key-change-in-production')
@@ -19,14 +19,20 @@ ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
 
 CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+UPLOAD_FOLDER = os.environ.get(
+    'UPLOAD_FOLDER',
+    os.path.join(tempfile.gettempdir(), 'rentease_uploads')
+)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'rentease.db')
+DB_PATH = os.environ.get(
+    'DB_PATH',
+    os.path.join(tempfile.gettempdir(), 'rentease.db')
+)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -95,31 +101,26 @@ def init_db():
         c.execute('ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0')
     if 'verification_code' not in existing_columns:
         c.execute('ALTER TABLE users ADD COLUMN verification_code TEXT')
-    c.execute('SELECT COUNT(*) FROM properties')
-    if c.fetchone()[0] == 0:
-        seed(c)
+    admin_email = os.environ.get('ADMIN_EMAIL')
+    admin_username = os.environ.get('ADMIN_USERNAME')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if admin_email and admin_username and admin_password:
+        c.execute('SELECT id FROM users WHERE is_admin=1 LIMIT 1')
+        if not c.fetchone():
+            c.execute(
+                'INSERT INTO users(id,username,email,password_hash,is_admin,email_verified,verification_code) VALUES(?,?,?,?,?,?,?)',
+                (
+                    str(uuid.uuid4()),
+                    admin_username,
+                    admin_email,
+                    generate_password_hash(admin_password),
+                    1,
+                    1,
+                    None
+                )
+            )
     conn.commit()
     conn.close()
-
-def seed(c):
-    # Create admin user
-    admin_uid = str(uuid.uuid4())
-    c.execute('INSERT INTO users(id,username,email,password_hash,is_admin,email_verified) VALUES(?,?,?,?,?,?)',
-               (admin_uid, 'admin', 'admin@rentease.com', generate_password_hash('admin123'), 1, 1))
-    
-    props = [
-        ('Rongai Bees-Ness Park, Magadi Rd', 'A modern one-bedroom showroom house offering elegant design, premium comfort, and top-tier finishes. Ideal for professionals seeking a refined lifestyle in a secure environment.', 22000, 'month', 'Show Room House', 1, 1, 500, 'Nairobi', 'Rongai', 'Bees-Ness Park, Magadi Rd, Rongai', 1, 'Security,Wi-Fi,Fresh Water,Fully Equipped Kitchen', 'Parking Area,Security,24/7 Water supply', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80,https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=800&q=80,https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80'),
-        ('Rongai Bees-Ness Park Bedsitter', 'A spacious and beautifully designed home offering comfort, modern living, and easy access to amenities. Perfect for a single professional or student.', 11000, 'month', 'Bedsitters', 0, 1, 300, 'Nairobi', 'Rongai', 'Bees-Ness Park, Magadi Rd, Rongai', 1, 'Security,Fresh Water', 'Security,24/7 Water supply', 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80,https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80'),
-        ('Bamburi, Kisauni – Mombasa Airbnb', 'A comfortable and well-furnished Airbnb offering a relaxing coastal stay with beautiful surroundings and convenient amenities.', 2000, 'day', 'Airbnb', 1, 1, 400, 'Mombasa', 'Bamburi, Kisauni', 'Bamburi, Kisauni, Mombasa. Postal Code: 80101', 1, 'Air Conditioning,Cable TV,Connectivity(Wi-Fi),Fresh Water', 'Air conditioning,wifi,Security', 'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80,https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80'),
-        ('Bamburi Kisauni Sea View Airbnb', 'Stay cool and comfortable in this beautifully appointed coastal Airbnb. Modern furnishings and stunning ocean surroundings.', 2000, 'day', 'Airbnb', 1, 1, 350, 'Mombasa', 'Bamburi, Kisauni', 'Bamburi, Kisauni, Mombasa. Postal Code: 80101', 1, 'Air Conditioning,Connectivity(Wi-Fi),Fresh Water', 'Air conditioning,wifi', 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80,https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=800&q=80'),
-        ('Modern 2-Bedroom Apartment – Kilimani', 'Spacious modern apartment in Kilimani with floor-to-ceiling windows, modern kitchen, and secure parking. Walking distance to top restaurants.', 55000, 'month', 'Apartments', 2, 2, 950, 'Nairobi', 'Kilimani', 'Kilimani, Nairobi', 0, 'Security,Wi-Fi,Fresh Water,Air Conditioning', 'Parking Area,Security,24/7 Water supply,Rooftop', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80,https://images.unsplash.com/photo-1560448075-bb485b067938?w=800&q=80'),
-        ('3-Bedroom Rental – Syokimau', 'Affordable family home in Syokimau with generous space and easy SGR commute access. Quiet, secure neighbourhood.', 35000, 'month', 'Rentals', 3, 2, 1200, 'Machakos', 'Syokimau', 'Syokimau, Machakos', 0, 'Security,Fresh Water', 'Parking Area,Security,24/7 Water supply', 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80,https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&q=80'),
-        ('Studio Bedsitter – Juja Town', 'Newly built studio bedsitter in Juja near JKUAT. Clean water, 24-hour security, and fibre internet included.', 8500, 'month', 'Bedsitters', 0, 1, 250, 'Kiambu', 'Juja', 'Juja Town, Kiambu County', 0, 'Security,Wifi,Fresh Water', 'Security,wifi,24/7 Water supply', 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80'),
-        ('1-Bedroom Apartment – Westlands', 'Elegant apartment in prestigious Westlands with gym access, rooftop terrace, and 24/7 concierge service.', 40000, 'month', 'Apartments', 1, 1, 650, 'Nairobi', 'Westlands', 'Westlands, Nairobi', 0, 'Air Conditioning,Security,Wifi,Fresh Water,Fully Equipped Kitchen', 'Parking Area,Security,Rooftop,wifi,24/7 Water supply', 'https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800&q=80,https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'),
-    ]
-    for p in props:
-        c.execute('INSERT INTO properties (id,title,description,price,price_period,type,bedrooms,bathrooms,area_sqft,county,location,address,featured,amenities,features,images) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                  (str(uuid.uuid4()),) + p)
 
 # ── AUTH ──────────────────────────────────────────────────────────────────
 @app.route('/api/auth/register', methods=['POST'])
