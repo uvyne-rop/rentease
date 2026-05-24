@@ -1,0 +1,16 @@
+# Ignore environment files containing secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+venv/
+.venv
+
+# Logs
+*.log
+
+# Local uploads
+uploads/
