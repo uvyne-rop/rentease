@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { LayoutGrid, List } from 'lucide-react'
 import SearchBar from '../components/SearchBar'
 import PropertyCard from '../components/PropertyCard'
+import { getApiUrl } from '../utils/api'
 
 const SORT_OPTIONS = [
   { value: 'newest',     label: 'Newest' },
@@ -18,7 +19,7 @@ export default function PropertiesForRentPage() {
 
   useEffect(() => {
     setLoading(true)
-    fetch(`/api/properties?sort=${sort}`, { credentials: 'include' })
+    fetch(getApiUrl(`/api/properties?sort=${sort}`), { credentials: 'include' })
       .then(r => r.json())
       .then(d => setProperties(d.properties || []))
       .catch(() => {})

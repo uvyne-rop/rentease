@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { X, Bed, Bath, Maximize2, MapPin } from 'lucide-react'
 import AuthModal from '../components/AuthModal'
 import { useToast } from '../context/ToastContext'
+import { getApiUrl } from '../utils/api'
 
 export default function ComparePage() {
   const [items, setItems] = useState([])
@@ -12,7 +13,7 @@ export default function ComparePage() {
   const toast = useToast()
 
   useEffect(() => { 
-    fetch('/api/compare', { credentials: 'include' })
+    fetch(getApiUrl('/api/compare'), { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         if (d.auth_required) { setAuthNeeded(true); return }
@@ -23,7 +24,7 @@ export default function ComparePage() {
   }, [])
 
   const remove = async (id) => {
-    await fetch(`/api/compare/${id}`, { method: 'DELETE', credentials: 'include' })
+    await fetch(getApiUrl(`/api/compare/${id}`), { method: 'DELETE', credentials: 'include' })
     setItems(prev => prev.filter(p => p.id !== id))
     toast.show('Removed from compare.', 'info')
   }

@@ -57,7 +57,7 @@ export default function PropertyDetailPage() {
       return
     }
     try {
-      const res  = await fetch(`/api/compare/${id}`, { method: 'POST', credentials: 'include' })
+      const res  = await fetch(getApiUrl(`/api/compare/${id}`), { method: 'POST', credentials: 'include' })
       const data = await res.json()
       if (data.auth_required) { setAuthModal('login'); return }
       if (data.error)         { toast.show(data.error, 'error'); return }

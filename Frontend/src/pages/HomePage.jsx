@@ -4,6 +4,7 @@ import { ArrowRight, LayoutGrid, List, Shield, Star, Zap, MapPin, Phone } from '
 import SearchBar from '../components/SearchBar'
 import PropertyCard from '../components/PropertyCard'
 import ChatbotWidget from '../components/ChatbotWidget'
+import { getApiUrl } from '../utils/api'
 
 const SORT_OPTIONS = [
   { value: 'newest',     label: 'Newest' },
@@ -19,7 +20,7 @@ export default function HomePage() {
   const [sort, setSort] = useState('newest')
 
   useEffect(() => {
-    fetch('/api/properties?featured=1&sort=' + sort, { credentials: 'include' })
+    fetch(getApiUrl(`/api/properties?featured=1&sort=${sort}`), { credentials: 'include' })
       .then(r => r.json())
       .then(d => setProperties(d.properties || []))
       .catch(() => {})
