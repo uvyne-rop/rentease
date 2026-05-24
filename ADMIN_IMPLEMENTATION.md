@@ -28,12 +28,13 @@ All admin endpoints require admin authentication:
 - `POST /api/admin/upload` - Upload property images (admin only)
 
 #### 3. Admin User
-Default admin credentials (seed data):
-- Username: `admin`
-- Email: `admin@rentease.com`
-- Password: `admin123`
-- is_admin: 1 (true)
-- email_verified: 1 (true)
+The first admin account is created automatically from environment variables when the backend starts, if no admin exists yet.
+Use these variables in production or local `.env` configuration:
+ - `ADMIN_EMAIL`
+ - `ADMIN_USERNAME`
+ - `ADMIN_PASSWORD`
+The backend also supports a real external database via:
+ - `DATABASE_URL=postgresql://user:password@host:port/dbname`
 
 ### Frontend (React)
 

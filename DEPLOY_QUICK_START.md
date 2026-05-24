@@ -44,6 +44,12 @@
 ### In Railway (Backend)
 1. Go to Variables
 2. Add: `FRONTEND_URL = https://your-app.vercel.app`
+3. Add: `DATABASE_URL = postgresql://user:password@host:port/dbname`
+4. Add the first admin user:
+   - `ADMIN_EMAIL = admin@your-app.com`
+   - `ADMIN_USERNAME = admin`
+   - `ADMIN_PASSWORD = your-secure-password`
+5. Click Deploy
 3. Click Deploy
 
 ---

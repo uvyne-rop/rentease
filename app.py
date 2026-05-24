@@ -26,18 +26,84 @@ UPLOAD_FOLDER = os.environ.get(
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+DATABASE_URL = os.environ.get('DATABASE_URL')
 DB_PATH = os.environ.get(
     'DB_PATH',
     os.path.join(tempfile.gettempdir(), 'rentease.db')
 )
+DB_DRIVER = 'postgres' if DATABASE_URL else 'sqlite'
+
+
+def placeholder_sql(sql):
+    return sql if DB_DRIVER == 'sqlite' else sql.replace('?', '%s')
+
+
+def execute(cursor, sql, params=None):
+    if params is None:
+        params = ()
+    return cursor.execute(sql, params)
+
+
+class AdaptedCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def execute(self, sql, params=None):
+        if params is None:
+            params = ()
+        return self._cursor.execute(placeholder_sql(sql), params)
+
+    def executemany(self, sql, seq_of_params):
+        return self._cursor.executemany(placeholder_sql(sql), seq_of_params)
+
+    def __getattr__(self, item):
+        return getattr(self._cursor, item)
+
+    def __iter__(self):
+        return iter(self._cursor)
+
+
+class AdaptedConnection:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self, *args, **kwargs):
+        c = self._conn.cursor(*args, **kwargs)
+        return AdaptedCursor(c)
+
+    def __getattr__(self, item):
+        return getattr(self._conn, item)
+
+
+def adapt_connection(conn):
+    return AdaptedConnection(conn)
+
 
 def get_db():
+    if DATABASE_URL:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return adapt_connection(conn)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    return adapt_connection(conn)
+
+
+def get_table_columns(conn, table_name):
+    c = conn.cursor()
+    if DB_DRIVER == 'sqlite':
+        c.execute(f"PRAGMA table_info({table_name})")
+        cols = [row['name'] for row in c.fetchall()]
+    else:
+        c.execute('SELECT column_name FROM information_schema.columns WHERE table_name=%s', (table_name,))
+        cols = [row['column_name'] for row in c.fetchall()]
+    c.close()
+    return cols
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def row_to_dict(row):
     d = dict(row)
@@ -72,42 +138,69 @@ def require_admin(f):
 def init_db():
     conn = get_db()
     c = conn.cursor()
-    c.executescript('''
+    execute(c, '''
         CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
+            id TEXT PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
             is_admin INTEGER DEFAULT 0,
             email_verified INTEGER DEFAULT 0,
             verification_code TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS properties (
-            id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT,
-            price REAL NOT NULL, price_period TEXT DEFAULT 'month',
-            type TEXT, category TEXT DEFAULT 'for-rent',
-            bedrooms INTEGER DEFAULT 0, bathrooms INTEGER DEFAULT 0,
-            area_sqft INTEGER, county TEXT, location TEXT, address TEXT,
-            featured INTEGER DEFAULT 0, amenities TEXT, features TEXT,
-            images TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS favorites (
-            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, property_id TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP);
-        CREATE TABLE IF NOT EXISTS comparisons (
-            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, property_id TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
     ''')
-    c.execute("PRAGMA table_info(users)")
-    existing_columns = {row['name'] for row in c.fetchall()}
+    execute(c, '''
+        CREATE TABLE IF NOT EXISTS properties (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            price REAL NOT NULL,
+            price_period TEXT DEFAULT 'month',
+            type TEXT,
+            category TEXT DEFAULT 'for-rent',
+            bedrooms INTEGER DEFAULT 0,
+            bathrooms INTEGER DEFAULT 0,
+            area_sqft INTEGER,
+            county TEXT,
+            location TEXT,
+            address TEXT,
+            featured INTEGER DEFAULT 0,
+            amenities TEXT,
+            features TEXT,
+            images TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    execute(c, '''
+        CREATE TABLE IF NOT EXISTS favorites (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            property_id TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    execute(c, '''
+        CREATE TABLE IF NOT EXISTS comparisons (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            property_id TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    existing_columns = set(get_table_columns(conn, 'users'))
     if 'email_verified' not in existing_columns:
-        c.execute('ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0')
+        execute(c, 'ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0')
     if 'verification_code' not in existing_columns:
-        c.execute('ALTER TABLE users ADD COLUMN verification_code TEXT')
+        execute(c, 'ALTER TABLE users ADD COLUMN verification_code TEXT')
     admin_email = os.environ.get('ADMIN_EMAIL')
     admin_username = os.environ.get('ADMIN_USERNAME')
     admin_password = os.environ.get('ADMIN_PASSWORD')
     if admin_email and admin_username and admin_password:
-        c.execute('SELECT id FROM users WHERE is_admin=1 LIMIT 1')
+        execute(c, 'SELECT id FROM users WHERE is_admin=1 LIMIT 1')
         if not c.fetchone():
-            c.execute(
+            execute(
+                c,
                 'INSERT INTO users(id,username,email,password_hash,is_admin,email_verified,verification_code) VALUES(?,?,?,?,?,?,?)',
                 (
                     str(uuid.uuid4()),
@@ -566,6 +659,45 @@ def admin_upload_image():
         return jsonify({'error': 'No file selected.'}), 400
     if file and allowed_file(file.filename):
         filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
+        # Prefer external storage when configured (Supabase Storage or Cloudinary)
+        # 1) Supabase Storage (recommended, has a generous free tier)
+        SUPABASE_URL = os.environ.get('SUPABASE_URL')
+        SUPABASE_KEY = os.environ.get('SUPABASE_KEY')  # service role key
+        SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', 'uploads')
+        if SUPABASE_URL and SUPABASE_KEY:
+            try:
+                import requests
+                data = file.read()
+                upload_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
+                headers = {
+                    'Authorization': f'Bearer {SUPABASE_KEY}',
+                    'apikey': SUPABASE_KEY,
+                    'Content-Type': file.content_type or 'application/octet-stream'
+                }
+                resp = requests.post(upload_url, data=data, headers=headers)
+                if resp.status_code not in (200, 201):
+                    return jsonify({'error': 'Upload to Supabase failed.', 'details': resp.text}), 500
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
+                return jsonify({'url': public_url, 'filename': filename}), 200
+            except Exception as e:
+                return jsonify({'error': 'Supabase upload error', 'details': str(e)}), 500
+
+        # 2) Cloudinary (also offers a free tier)
+        if os.environ.get('CLOUDINARY_CLOUD_NAME') and os.environ.get('CLOUDINARY_API_KEY') and os.environ.get('CLOUDINARY_API_SECRET'):
+            try:
+                import cloudinary
+                import cloudinary.uploader
+                cloudinary.config(
+                    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+                    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+                    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+                )
+                res = cloudinary.uploader.upload(file, public_id=filename, resource_type='image')
+                return jsonify({'url': res.get('secure_url'), 'filename': filename}), 200
+            except Exception as e:
+                return jsonify({'error': 'Cloudinary upload failed', 'details': str(e)}), 500
+
+        # 3) Fallback to local temp storage
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
         return jsonify({'url': f'/api/uploads/{filename}', 'filename': filename}), 200

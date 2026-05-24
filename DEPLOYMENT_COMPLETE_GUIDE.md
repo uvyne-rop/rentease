@@ -73,10 +73,21 @@ Before you start:
 2. Click your project
 3. Click the Railway project name
 4. Go to "Variables"
-5. Click "New Variable"
+5. Add the following environment variables:
    - **Name:** `FRONTEND_URL`
-   - **Value:** Paste your Vercel URL (from Step 1)
-   - Example: `https://rentease.vercel.app`
+     - **Value:** Paste your Vercel URL (from Step 1)
+     - Example: `https://rentease.vercel.app`
+   - **Name:** `DATABASE_URL`
+     - **Value:** Your Postgres connection string
+     - Example: `postgresql://user:password@host:port/dbname`
+   - **Name:** `ADMIN_EMAIL`
+     - **Value:** The first admin's email address
+     - Example: `admin@rentease.com`
+   - **Name:** `ADMIN_USERNAME`
+     - **Value:** The first admin's username
+     - Example: `admin`
+   - **Name:** `ADMIN_PASSWORD`
+     - **Value:** A strong admin password
 6. Click "Add"
 7. Click "Deploy"
 8. Wait for deployment ✅
