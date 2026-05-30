@@ -90,8 +90,17 @@ RENT_EASE_EMAIL = get_env('RENT_EASE_EMAIL', get_env('ADMIN_EMAIL', 'agencyrente
 
 mail = Mail(app)
 
-if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    print('WARNING: Mail is not fully configured. Contact form and verification emails will fail.')
+missing_mail_config = [
+    key for key in ('MAIL_USERNAME', 'MAIL_PASSWORD')
+    if not app.config.get(key)
+]
+
+if missing_mail_config:
+    print(
+        'WARNING: Mail is not fully configured. Missing: '
+        + ', '.join(missing_mail_config)
+        + '. Contact form and verification emails will fail.'
+    )
 
 def send_verification_email(email, verification_code, username):
     """Send verification code via email"""
@@ -286,6 +295,18 @@ def require_admin(f):
 @app.route('/api/health')
 def health():
     return jsonify({'status': 'ok', 'environment': ENVIRONMENT}), 200
+
+
+@app.route('/api/config-check')
+def config_check():
+    return jsonify({
+        'environment': ENVIRONMENT,
+        'mail_configured': not missing_mail_config,
+        'mail_username_set': bool(app.config.get('MAIL_USERNAME')),
+        'mail_password_set': bool(app.config.get('MAIL_PASSWORD')),
+        'database': DB_DRIVER,
+        'allowed_origins_count': len(ALLOWED_ORIGINS),
+    }), 200
 
 
 @app.route('/')
