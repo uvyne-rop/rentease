@@ -43,7 +43,6 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
-    await fetchMe()
     return data
   }
 
@@ -61,7 +60,6 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
-    await fetchMe()
     return data
   }
 

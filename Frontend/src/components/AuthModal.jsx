@@ -8,6 +8,7 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ username: '', email: '', password: '', verification_code: '' })
+  const [registeredEmail, setRegisteredEmail] = useState('')
   const [error, setError] = useState('')
   const { login, register, resetPassword, verifyEmail, resendVerification } = useAuth()
   const toast = useToast()
@@ -25,19 +26,15 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
         onClose()
       } else if (mode === 'register') {
         const data = await register(form.username, form.email, form.password)
-        toast.show(
-          data.verification_code
-            ? `${data.message} Your code is ${data.verification_code}`
-            : data.message,
-          'info'
-        )
+        setRegisteredEmail(form.email)
+        toast.show(data.message, 'info')
         setMode('verify')
       } else if (mode === 'reset') {
         const data = await resetPassword(form.email)
         toast.show(data.message, 'info')
         setMode('login')
       } else if (mode === 'verify') {
-        const data = await verifyEmail(form.email, form.verification_code)
+        const data = await verifyEmail(registeredEmail, form.verification_code)
         toast.show(data.message || 'Email verified! Please sign in.', 'success')
         setMode('login')
       }
@@ -66,7 +63,7 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
               {mode === 'login' ? 'Save your favourite homes and more' :
                mode === 'register' ? 'Start finding your perfect home' :
                mode === 'reset' ? 'Enter your email to reset your password' :
-               'Enter the verification code sent to your email'}
+               `A verification code was sent to ${registeredEmail}`}
             </p>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
@@ -90,35 +87,35 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {mode === 'login' ? 'Email or Username' : 'Email'}
-            </label>
-            <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type={mode === 'login' ? 'text' : 'email'} required
-                placeholder={mode === 'login' ? 'Email or username' : 'Your email address'}
-                value={form.email} onChange={e => set('email', e.target.value)}
-                className="input-field pl-9"
-              />
-            </div>
-            {mode === 'register' && (
-              <p className="text-xs text-slate-400 mt-1">You'll use this to sign in</p>
-            )}
-          </div>
-
           {mode === 'verify' && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Verification Code</label>
+              <input
+                type="text" required
+                placeholder="Enter 6-digit code"
+                value={form.verification_code} onChange={e => set('verification_code', e.target.value)}
+                className="input-field pl-4"
+              />
+            </div>
+          )}
+
+          {mode !== 'verify' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {mode === 'login' ? 'Email or Username' : 'Email'}
+              </label>
               <div className="relative">
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="text" required
-                  placeholder="Enter your code"
-                  value={form.verification_code} onChange={e => set('verification_code', e.target.value)}
-                  className="input-field pl-4"
+                  type={mode === 'login' ? 'text' : 'email'} required
+                  placeholder={mode === 'login' ? 'Email or username' : 'Your email address'}
+                  value={form.email} onChange={e => set('email', e.target.value)}
+                  className="input-field pl-9"
                 />
               </div>
+              {mode === 'register' && (
+                <p className="text-xs text-slate-400 mt-1">A verification code will be sent here</p>
+              )}
             </div>
           )}
 
@@ -176,7 +173,7 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
               <button type="button" onClick={async () => {
                 setLoading(true); setError('')
                 try {
-                  const data = await resendVerification(form.email)
+                  const data = await resendVerification(registeredEmail)
                   toast.show(data.message, 'success')
                 } catch (err) {
                   setError(err.message)
