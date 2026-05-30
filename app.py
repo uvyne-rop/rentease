@@ -780,8 +780,10 @@ def toggle_compare(pid):
     conn = get_db()
     c = conn.cursor()
     if request.method == 'POST':
-        c.execute('SELECT COUNT(*) FROM comparisons WHERE user_id=?', (uid,))
-        if c.fetchone()[0] >= 4:
+        c.execute('SELECT COUNT(*) as cnt FROM comparisons WHERE user_id=?', (uid,))
+        row = c.fetchone()
+        count = row['cnt'] if 'cnt' in row.keys() else row[0]
+        if count >= 4:
             conn.close()
             return jsonify({'error': 'You can compare up to 4 properties at a time.'}), 400
         c.execute('SELECT id FROM comparisons WHERE user_id=? AND property_id=?', (uid, pid))

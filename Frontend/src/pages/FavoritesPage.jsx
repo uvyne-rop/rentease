@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import PropertyCard from '../components/PropertyCard'
 import AuthModal from '../components/AuthModal'
+import { getApiUrl } from '../utils/api'
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState([])

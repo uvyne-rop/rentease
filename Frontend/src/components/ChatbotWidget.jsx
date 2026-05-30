@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MessageSquare, Send, X } from 'lucide-react'
+import { getApiUrl } from '../utils/api'
 
 export default function ChatbotWidget() {
   const [open, setOpen] = useState(false)
