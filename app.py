@@ -1,23 +1,159 @@
 from flask import Flask, jsonify, request, session, send_from_directory
 from flask_cors import CORS
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3, os, uuid, tempfile
 
+
+def load_dotenv(path='.env'):
+    if not os.path.exists(path):
+        return
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and value and key not in os.environ:
+                os.environ[key] = value
+
+
+def get_env(key, default=None):
+    value = os.environ.get(key, default)
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def normalize_origin(origin):
+    if not origin:
+        return ''
+    return origin.strip().rstrip('/')
+
+
+def parse_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+load_dotenv()
+
+ENVIRONMENT = get_env('ENVIRONMENT', 'development').lower()
+
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'rentease-secret-key-change-in-production')
+app.secret_key = get_env('SECRET_KEY', 'rentease-secret-key-change-in-production')
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='None' if ENVIRONMENT == 'production' else 'Lax',
+    SESSION_COOKIE_SECURE=ENVIRONMENT == 'production',
+)
 
 # CORS configuration - allows local development and production URLs
 ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'http://localhost:5000',
-    os.environ.get('FRONTEND_URL', '').strip() or None,
-    os.environ.get('BACKEND_URL', '').strip() or None,
+    'http://127.0.0.1:5000',
+    normalize_origin(get_env('FRONTEND_URL', '')),
+    normalize_origin(get_env('BACKEND_URL', '')),
 ]
 ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
 
 CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
+
+# ── EMAIL CONFIGURATION ────────────────────────────────────────────────────
+app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(get_env('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = parse_bool(get_env('MAIL_USE_TLS', 'true'))
+app.config['MAIL_USE_SSL'] = parse_bool(get_env('MAIL_USE_SSL', 'false'))
+app.config['MAIL_USERNAME'] = get_env('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = get_env('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = get_env('MAIL_DEFAULT_SENDER', get_env('MAIL_USERNAME', 'noreply@rentease.com'))
+RENT_EASE_EMAIL = get_env('RENT_EASE_EMAIL', get_env('ADMIN_EMAIL', 'agencyrentease@gmail.com'))
+
+mail = Mail(app)
+
+if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+    print('WARNING: Mail is not fully configured. Contact form and verification emails will fail.')
+
+def send_verification_email(email, verification_code, username):
+    """Send verification code via email"""
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        msg = f"Email not configured. Verification code for {email}: {verification_code}"
+        print(msg)
+        return False, msg
+
+    try:
+        msg = Message(
+            subject='RentEase Email Verification',
+            recipients=[email],
+            html=f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h1 style="color: #2563eb; margin-bottom: 20px;">Welcome to RentEase, {username}!</h1>
+                        <p style="color: #555; font-size: 16px; margin-bottom: 20px;">Thank you for signing up. Please verify your email address by entering the code below:</p>
+                        <div style="background-color: #f0f4ff; padding: 20px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
+                            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Your Verification Code:</p>
+                            <p style="font-size: 32px; font-weight: bold; color: #2563eb; letter-spacing: 4px; margin: 0;">{verification_code}</p>
+                        </div>
+                        <p style="color: #555; font-size: 14px; margin-bottom: 10px;">This code will expire in 24 hours.</p>
+                        <p style="color: #555; font-size: 14px; margin-top: 20px;">If you did not create this account, please ignore this email.</p>
+                        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                        <p style="color: #999; font-size: 12px; text-align: center;">RentEase Team | Finding Your Perfect Home</p>
+                    </div>
+                </body>
+            </html>
+            """
+        )
+        mail.send(msg)
+        return True, None
+    except Exception as e:
+        err = f"Error sending email to {email}: {str(e)}"
+        print(err)
+        return False, err
+
+
+def send_contact_email(name, email, message_text):
+    """Send contact form message to the RentEase email"""
+    if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+        msg = f"Email not configured. Contact message from {name} <{email}>: {message_text}"
+        print(msg)
+        return False, msg
+
+    try:
+        msg = Message(
+            subject=f'New RentEase contact message from {name}',
+            recipients=[RENT_EASE_EMAIL],
+            reply_to=email,
+            html=f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h1 style="color: #2563eb; margin-bottom: 20px;">New Contact Us Message</h1>
+                        <p style="color: #555; font-size: 16px; margin-bottom: 10px;"><strong>Name:</strong> {name}</p>
+                        <p style="color: #555; font-size: 16px; margin-bottom: 10px;"><strong>Email:</strong> {email}</p>
+                        <p style="color: #555; font-size: 16px; margin-bottom: 20px;"><strong>Message:</strong></p>
+                        <div style="background-color: #f0f4ff; padding: 20px; border-radius: 6px; color: #333; line-height: 1.6; white-space: pre-wrap;">{message_text}</div>
+                        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                        <p style="color: #999; font-size: 12px; text-align: center;">RentEase Contact Form</p>
+                    </div>
+                </body>
+            </html>
+            """
+        )
+        mail.send(msg)
+        return True, None
+    except Exception as e:
+        err = f"Error sending contact email: {str(e)}"
+        print(err)
+        return False, err
 
 UPLOAD_FOLDER = os.environ.get(
     'UPLOAD_FOLDER',
@@ -135,6 +271,16 @@ def require_admin(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+@app.route('/api/health')
+def health():
+    return jsonify({'status': 'ok', 'environment': ENVIRONMENT}), 200
+
+
+@app.route('/')
+def root():
+    return jsonify({'service': 'RentEase API', 'status': 'ok'}), 200
+
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -231,13 +377,19 @@ def register():
     c = conn.cursor()
     try:
         uid = str(uuid.uuid4())
-        c.execute('INSERT INTO users(id,username,email,password_hash,email_verified,verification_code) VALUES(?,?,?,?,?,?)',
-                  (uid, username, email, generate_password_hash(password), 0, verification_code))
+        execute(c, 'INSERT INTO users(id,username,email,password_hash,email_verified,verification_code) VALUES(?,?,?,?,?,?)',
+                (uid, username, email, generate_password_hash(password), 0, verification_code))
         conn.commit()
+        # Send verification email
+        sent, send_error = send_verification_email(email, verification_code, username)
+        if not sent:
+            return jsonify({
+                'error': 'Account created, but verification email could not be sent.',
+                'details': send_error
+            }), 500
         return jsonify({
             'message': 'Account created successfully. Please verify your email before signing in.',
-            'email': email,
-            'verification_code': verification_code
+            'email': email
         }), 201
     except sqlite3.IntegrityError:
         return jsonify({'error': 'An account with those details already exists.'}), 409
@@ -297,7 +449,7 @@ def verify_email():
         return jsonify({'error': 'Email and verification code are required.'}), 400
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT id, username, verification_code, email_verified FROM users WHERE email=?', (email,))
+    execute(c, 'SELECT id, username, verification_code, email_verified FROM users WHERE email=?', (email,))
     user = c.fetchone()
     if not user:
         conn.close()
@@ -308,7 +460,7 @@ def verify_email():
     if user['verification_code'] != code:
         conn.close()
         return jsonify({'error': 'Invalid verification code.'}), 400
-    c.execute('UPDATE users SET email_verified=1, verification_code=NULL WHERE id=?', (user['id'],))
+    execute(c, 'UPDATE users SET email_verified=1, verification_code=NULL WHERE id=?', (user['id'],))
     conn.commit()
     conn.close()
     session['user_id'] = user['id']
@@ -323,7 +475,7 @@ def resend_verification():
         return jsonify({'error': 'Email is required.'}), 400
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT id, email_verified FROM users WHERE email=?', (email,))
+    execute(c, 'SELECT id, username, email_verified FROM users WHERE email=?', (email,))
     user = c.fetchone()
     if not user:
         conn.close()
@@ -332,12 +484,18 @@ def resend_verification():
         conn.close()
         return jsonify({'message': 'Email is already verified.'}), 200
     verification_code = '{:06d}'.format(uuid.uuid4().int % 1000000)
-    c.execute('UPDATE users SET verification_code=? WHERE id=?', (verification_code, user['id']))
+    execute(c, 'UPDATE users SET verification_code=? WHERE id=?', (verification_code, user['id']))
     conn.commit()
     conn.close()
+    # Send verification email
+    sent, send_error = send_verification_email(email, verification_code, user['username'])
+    if not sent:
+        return jsonify({
+            'error': 'Verification email could not be sent.',
+            'details': send_error
+        }), 500
     return jsonify({
-        'message': 'Verification instructions have been sent. Check your email.',
-        'verification_code': verification_code
+        'message': 'Verification instructions have been sent. Check your email.'
     }), 200
 
 # ── PROPERTIES ────────────────────────────────────────────────────────────
@@ -490,8 +648,18 @@ def counties():
 @app.route('/api/contact', methods=['POST'])
 def contact():
     d = request.get_json()
-    if not all([d.get('name'), d.get('email'), d.get('message')]):
+    name = (d.get('name') or '').strip()
+    email = (d.get('email') or '').strip().lower()
+    message_text = (d.get('message') or '').strip()
+    if not all([name, email, message_text]):
         return jsonify({'error': 'All fields are required.'}), 400
+
+    success, error_message = send_contact_email(name, email, message_text)
+    if not success:
+        if ENVIRONMENT != 'production':
+            return jsonify({'error': error_message}), 500
+        return jsonify({'error': 'Unable to send contact email. Check backend mail configuration and logs.'}), 500
+
     return jsonify({'message': "Thank you! We'll be in touch shortly."}), 200
 
 @app.route('/api/chatbot', methods=['POST'])
@@ -707,7 +875,8 @@ def admin_upload_image():
 def serve_upload(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)

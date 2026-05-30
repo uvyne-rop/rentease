@@ -1,9 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import API_URL from '../utils/api'
 
 const AuthContext = createContext(null)
-
-// Get API URL from environment or use relative path for development
-const API_URL = import.meta.env.VITE_API_URL || ''
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
