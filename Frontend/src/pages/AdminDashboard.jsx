@@ -286,66 +286,94 @@ export default function AdminDashboard() {
 
         {/* Properties Tab */}
         {activeTab === 'properties' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Featured</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {properties.map((property) => (
-                    <tr key={property.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          {property.images && property.images.length > 0 && (
-                            <img 
-                              src={property.images[0]} 
-                              alt={property.title}
-                              className="h-12 w-12 rounded-lg object-cover mr-3"
-                            />
-                          )}
-                          <div>
-                            <div className="font-medium text-gray-900">{property.title}</div>
-                            <div className="text-sm text-gray-500 truncate max-w-xs">{property.description?.substring(0, 50)}...</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{property.type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        KES {property.price?.toLocaleString()}/{property.price_period}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{property.location}, {property.county}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${property.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {property.featured ? 'Yes' : 'No'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => openEditModal(property)}
-                          className="text-blue-600 hover:text-blue-800 mr-3"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(property.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
+                <p className="text-sm text-gray-500">{properties.length} saved properties</p>
+              </div>
+              <button
+                onClick={openCreateModal}
+                className="w-full sm:w-auto bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
+              >
+                + Add Property
+              </button>
             </div>
+
+            {properties.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties yet</h3>
+                <p className="text-gray-500 mb-5">Create the first rental listing for RentEase.</p>
+                <button
+                  onClick={openCreateModal}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
+                >
+                  + Add Property
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Property</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Featured</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {properties.map((property) => (
+                        <tr key={property.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              {property.images && property.images.length > 0 && (
+                                <img 
+                                  src={property.images[0]} 
+                                  alt={property.title}
+                                  className="h-12 w-12 rounded-lg object-cover mr-3"
+                                />
+                              )}
+                              <div>
+                                <div className="font-medium text-gray-900">{property.title}</div>
+                                <div className="text-sm text-gray-500 truncate max-w-xs">{property.description?.substring(0, 50)}...</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{property.type}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            KES {property.price?.toLocaleString()}/{property.price_period}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{property.location}, {property.county}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 text-xs rounded-full ${property.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                              {property.featured ? 'Yes' : 'No'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <button
+                              onClick={() => openEditModal(property)}
+                              className="text-blue-600 hover:text-blue-800 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(property.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
