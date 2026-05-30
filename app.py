@@ -323,6 +323,56 @@ def require_admin(f):
     return decorated_function
 
 
+def ensure_admin_user(force_update=False):
+    admin_email = get_env('ADMIN_EMAIL')
+    admin_username = get_env('ADMIN_USERNAME')
+    admin_password = get_env('ADMIN_PASSWORD')
+    if not admin_email or not admin_username or not admin_password:
+        return False, 'Admin environment variables are not fully configured.'
+
+    admin_email = admin_email.strip().lower()
+    admin_username = admin_username.strip()
+    conn = get_db()
+    c = conn.cursor()
+    execute(c, 'SELECT id FROM users WHERE email=? OR username=?', (admin_email, admin_username))
+    existing = c.fetchone()
+
+    if existing:
+        if force_update:
+            execute(
+                c,
+                'UPDATE users SET username=?, email=?, password_hash=?, is_admin=1, email_verified=1, verification_code=NULL WHERE id=?',
+                (
+                    admin_username,
+                    admin_email,
+                    generate_password_hash(admin_password),
+                    existing['id']
+                )
+            )
+            conn.commit()
+            conn.close()
+            return True, 'Admin user updated from environment variables.'
+        conn.close()
+        return True, 'Admin user already exists.'
+
+    execute(
+        c,
+        'INSERT INTO users(id,username,email,password_hash,is_admin,email_verified,verification_code) VALUES(?,?,?,?,?,?,?)',
+        (
+            str(uuid.uuid4()),
+            admin_username,
+            admin_email,
+            generate_password_hash(admin_password),
+            1,
+            1,
+            None
+        )
+    )
+    conn.commit()
+    conn.close()
+    return True, 'Admin user created from environment variables.'
+
+
 @app.route('/api/health')
 def health():
     return jsonify({'status': 'ok', 'environment': ENVIRONMENT}), 200
@@ -339,6 +389,16 @@ def config_check():
         'allowed_origins_count': len(ALLOWED_ORIGINS),
         'allowed_origins': ALLOWED_ORIGINS,
     }), 200
+
+
+@app.route('/api/admin/bootstrap', methods=['POST'])
+def bootstrap_admin():
+    token = get_env('ADMIN_BOOTSTRAP_TOKEN')
+    provided_token = request.headers.get('X-Admin-Bootstrap-Token', '')
+    if not token or provided_token != token:
+        return jsonify({'error': 'Unauthorized bootstrap request.'}), 403
+    ok, message = ensure_admin_user(force_update=True)
+    return jsonify({'ok': ok, 'message': message}), 200 if ok else 400
 
 
 @app.route('/')
@@ -403,27 +463,9 @@ def init_db():
         execute(c, 'ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0')
     if 'verification_code' not in existing_columns:
         execute(c, 'ALTER TABLE users ADD COLUMN verification_code TEXT')
-    admin_email = os.environ.get('ADMIN_EMAIL')
-    admin_username = os.environ.get('ADMIN_USERNAME')
-    admin_password = os.environ.get('ADMIN_PASSWORD')
-    if admin_email and admin_username and admin_password:
-        execute(c, 'SELECT id FROM users WHERE is_admin=1 LIMIT 1')
-        if not c.fetchone():
-            execute(
-                c,
-                'INSERT INTO users(id,username,email,password_hash,is_admin,email_verified,verification_code) VALUES(?,?,?,?,?,?,?)',
-                (
-                    str(uuid.uuid4()),
-                    admin_username,
-                    admin_email,
-                    generate_password_hash(admin_password),
-                    1,
-                    1,
-                    None
-                )
-            )
     conn.commit()
     conn.close()
+    ensure_admin_user(force_update=False)
 
 # ── AUTH ──────────────────────────────────────────────────────────────────
 @app.route('/api/auth/register', methods=['POST'])
