@@ -235,6 +235,16 @@ def adapt_connection(conn):
     return AdaptedConnection(conn)
 
 
+def is_integrity_error(error):
+    if isinstance(error, sqlite3.IntegrityError):
+        return True
+    try:
+        import psycopg2
+    except ImportError:
+        return False
+    return isinstance(error, psycopg2.IntegrityError)
+
+
 def get_db():
     if DATABASE_URL:
         import psycopg2
@@ -423,8 +433,12 @@ def register():
             'message': 'Account created successfully. Please verify your email before signing in.',
             'email': email
         }), 201
-    except sqlite3.IntegrityError:
-        return jsonify({'error': 'An account with those details already exists.'}), 409
+    except Exception as e:
+        conn.rollback()
+        if is_integrity_error(e):
+            return jsonify({'error': 'An account with those details already exists.'}), 409
+        print(f'Registration error: {str(e)}')
+        return jsonify({'error': 'Unable to create account. Check backend logs.'}), 500
     finally:
         conn.close()
 
