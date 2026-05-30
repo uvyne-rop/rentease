@@ -144,9 +144,9 @@ def handle_unexpected_error(error):
 
 # ── EMAIL CONFIGURATION ────────────────────────────────────────────────────
 app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(get_env('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = parse_bool(get_env('MAIL_USE_TLS', 'true'))
-app.config['MAIL_USE_SSL'] = parse_bool(get_env('MAIL_USE_SSL', 'false'))
+app.config['MAIL_PORT'] = int(get_env('MAIL_PORT', 465))
+app.config['MAIL_USE_TLS'] = parse_bool(get_env('MAIL_USE_TLS', 'false'))
+app.config['MAIL_USE_SSL'] = parse_bool(get_env('MAIL_USE_SSL', 'true'))
 app.config['MAIL_USERNAME'] = get_env('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = get_env('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = get_env('MAIL_DEFAULT_SENDER', get_env('MAIL_USERNAME', 'noreply@rentease.com'))

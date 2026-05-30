@@ -5,4 +5,5 @@ psycopg2-binary>=2.9.0
 requests>=2.0.0
 cloudinary>=1.30.0
 flask-mail>=0.9.1
+resend>=0.8.0
 gunicorn
