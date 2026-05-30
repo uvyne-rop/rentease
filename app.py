@@ -405,6 +405,40 @@ def bootstrap_admin():
     return jsonify({'ok': ok, 'message': message}), 200 if ok else 400
 
 
+@app.route('/api/admin/check-login', methods=['POST'])
+def check_admin_login():
+    token = get_env('ADMIN_BOOTSTRAP_TOKEN')
+    provided_token = request.headers.get('X-Admin-Bootstrap-Token', '')
+    if not token or provided_token != token:
+        return jsonify({'error': 'Unauthorized check request.'}), 403
+
+    d = request.get_json() or {}
+    identifier = (d.get('identifier') or '').strip()
+    password = d.get('password', '')
+    conn = get_db()
+    c = conn.cursor()
+    execute(c, 'SELECT * FROM users WHERE email=? OR username=?', (identifier, identifier))
+    user = c.fetchone()
+    conn.close()
+
+    if not user:
+        return jsonify({
+            'user_found': False,
+            'password_valid': False,
+            'is_admin': False,
+            'email_verified': False,
+        }), 200
+
+    return jsonify({
+        'user_found': True,
+        'password_valid': check_password_hash(user['password_hash'], password),
+        'is_admin': user['is_admin'] == 1,
+        'email_verified': user['email_verified'] == 1,
+        'matched_username': user['username'],
+        'matched_email': user['email'],
+    }), 200
+
+
 @app.route('/')
 def root():
     return jsonify({'service': 'RentEase API', 'status': 'ok'}), 200
