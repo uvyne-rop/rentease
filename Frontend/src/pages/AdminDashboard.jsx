@@ -11,7 +11,8 @@ export default function AdminDashboard() {
   const [properties, setProperties] = useState([])
   const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('properties')
-  const [dataLoading, setDataLoading] = useState(true)
+  const [propertiesLoading, setPropertiesLoading] = useState(false)
+  const [usersLoading, setUsersLoading] = useState(false)
   const [editingProperty, setEditingProperty] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({
@@ -36,29 +37,45 @@ export default function AdminDashboard() {
   }, [user])
 
   const fetchData = async () => {
-    setDataLoading(true)
+    fetchProperties()
+    fetchUsers()
+  }
+
+  const fetchProperties = async () => {
+    setPropertiesLoading(true)
     try {
-      const [propsRes, usersRes] = await Promise.all([
-        fetch(getApiUrl('/api/admin/properties'), { credentials: 'include' }),
-        fetch(getApiUrl('/api/admin/users'), { credentials: 'include' })
-      ])
-      
-      if (propsRes.status === 403 || usersRes.status === 403) {
+      const res = await fetch(getApiUrl('/api/admin/properties'), { credentials: 'include' })
+      if (res.status === 403) {
         showToast('Admin session expired. Please log in again.', 'error')
         navigate('/', { replace: true })
         return
       }
-      
-      const propsData = await propsRes.json()
-      const usersData = await usersRes.json()
-      
-      if (propsData.properties) setProperties(propsData.properties)
+      const data = await res.json()
+      if (data.properties) setProperties(data.properties)
+    } catch (err) {
+      console.error('Failed to load properties:', err)
+      showToast('Failed to load properties', 'error')
+    } finally {
+      setPropertiesLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const res = await fetch(getApiUrl('/api/admin/users'), { credentials: 'include' })
+      if (res.status === 403) {
+        showToast('Admin session expired. Please log in again.', 'error')
+        navigate('/', { replace: true })
+        return
+      }
+      const usersData = await res.json()
       if (usersData.users) setUsers(usersData.users)
     } catch (err) {
-      console.error('Failed to load admin data:', err)
-      showToast('Failed to load admin data', 'error')
+      console.error('Failed to load users:', err)
+      showToast('Failed to load users', 'error')
     } finally {
-      setDataLoading(false)
+      setUsersLoading(false)
     }
   }
 
@@ -167,7 +184,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         showToast(data.message, 'success')
         setShowModal(false)
-        fetchData()
+        fetchProperties()
       } else {
         showToast(data.error || `Failed to save property (${res.status})`, 'error')
       }
@@ -189,7 +206,7 @@ export default function AdminDashboard() {
       
       if (res.ok) {
         showToast(data.message, 'success')
-        fetchData()
+        fetchProperties()
       } else {
         showToast(data.error, 'error')
       }
@@ -210,13 +227,21 @@ export default function AdminDashboard() {
       
       if (res.ok) {
         showToast(data.message, 'success')
-        fetchData()
+        fetchUsers()
       } else {
         showToast(data.error, 'error')
       }
     } catch (err) {
       showToast('Failed to update user', 'error')
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   if (!user || !user.is_admin) {
@@ -228,22 +253,6 @@ export default function AdminDashboard() {
           <p className="text-gray-600 mb-4">Only administrators can access the admin dashboard.</p>
           <a href="/" className="text-blue-600 hover:text-blue-800 font-medium">Return to home</a>
         </div>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  if (dataLoading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
@@ -307,7 +316,9 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
-                <p className="text-sm text-gray-500">{properties.length} saved properties</p>
+                <p className="text-sm text-gray-500">
+                  {propertiesLoading ? 'Loading properties...' : `${properties.length} saved properties`}
+                </p>
               </div>
               <button
                 type="button"
@@ -318,7 +329,12 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {properties.length === 0 ? (
+            {propertiesLoading ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-500">Loading properties...</p>
+              </div>
+            ) : properties.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties yet</h3>
                 <p className="text-gray-500 mb-5">Create the first rental listing for RentEase.</p>
@@ -401,6 +417,12 @@ export default function AdminDashboard() {
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
+            {usersLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-500">Loading users...</p>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -435,6 +457,7 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
       </div>
