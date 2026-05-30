@@ -94,7 +94,6 @@ def add_cors_headers(response):
         *ALLOWED_ORIGINS,
         *env_origins('FRONTEND_URL', 'FRONTEND_URLS'),
     ]))
-    # Allow any vercel.app subdomain (covers preview deployments too)
     is_allowed = origin in dynamic_origins or (origin and 'vercel.app' in origin)
     if is_allowed:
         response.headers['Access-Control-Allow-Origin'] = origin
@@ -103,6 +102,26 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Vary'] = 'Origin'
     return response
+
+
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        origin = normalize_origin(request.headers.get('Origin', ''))
+        dynamic_origins = list(set([
+            *ALLOWED_ORIGINS,
+            *env_origins('FRONTEND_URL', 'FRONTEND_URLS'),
+        ]))
+        is_allowed = origin in dynamic_origins or (origin and 'vercel.app' in origin)
+        if is_allowed:
+            from flask import make_response
+            res = make_response('', 204)
+            res.headers['Access-Control-Allow-Origin'] = origin
+            res.headers['Access-Control-Allow-Credentials'] = 'true'
+            res.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            res.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            res.headers['Vary'] = 'Origin'
+            return res
 
 
 @app.errorhandler(Exception)
