@@ -80,6 +80,16 @@ ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
 CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 
 
+@app.after_request
+def add_cors_headers(response):
+    origin = normalize_origin(request.headers.get('Origin', ''))
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Vary'] = 'Origin'
+    return response
+
+
 @app.errorhandler(Exception)
 def handle_unexpected_error(error):
     if isinstance(error, HTTPException):
