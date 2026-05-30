@@ -836,19 +836,20 @@ def counties():
 
 @app.route('/api/contact', methods=['POST'])
 def contact():
-    d = request.get_json()
+    d = request.get_json(silent=True) or {}
     name = (d.get('name') or '').strip()
     email = (d.get('email') or '').strip().lower()
     message_text = (d.get('message') or '').strip()
     if not all([name, email, message_text]):
         return jsonify({'error': 'All fields are required.'}), 400
-
-    success, error_message = send_contact_email(name, email, message_text)
+    try:
+        success, error_message = send_contact_email(name, email, message_text)
+    except Exception as e:
+        print(f'Contact route error: {e}')
+        return jsonify({'error': 'Failed to send message. Please try again.'}), 500
     if not success:
-        if ENVIRONMENT != 'production':
-            return jsonify({'error': error_message}), 500
-        return jsonify({'error': 'Unable to send contact email. Check backend mail configuration and logs.'}), 500
-
+        print(f'Mail error: {error_message}')
+        return jsonify({'error': 'Failed to send message. Please try again.'}), 500
     return jsonify({'message': "Thank you! We'll be in touch shortly."}), 200
 
 @app.route('/api/chatbot', methods=['POST'])
