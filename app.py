@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, session, send_from_directory
 from flask_cors import CORS
 from flask_mail import Mail, Message
+from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3, os, uuid, tempfile
@@ -77,6 +78,14 @@ ALLOWED_ORIGINS = [
 ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
 
 CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    if isinstance(error, HTTPException):
+        return error
+    print(f'Unhandled backend error: {str(error)}')
+    return jsonify({'error': 'Internal server error. Check backend logs.'}), 500
 
 # ── EMAIL CONFIGURATION ────────────────────────────────────────────────────
 app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
@@ -316,6 +325,7 @@ def config_check():
         'mail_password_set': bool(app.config.get('MAIL_PASSWORD')),
         'database': DB_DRIVER,
         'allowed_origins_count': len(ALLOWED_ORIGINS),
+        'allowed_origins': ALLOWED_ORIGINS,
     }), 200
 
 
