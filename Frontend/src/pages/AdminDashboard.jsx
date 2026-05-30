@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
-import { getApiUrl } from '../utils/api'
+import { getApiUrl, getAssetUrl } from '../utils/api'
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth()
@@ -124,7 +124,10 @@ export default function AdminDashboard() {
     e.preventDefault()
     e.stopPropagation()
     if (uploading) return
-    handleImageUpload(e)
+    const file = e.dataTransfer?.files?.[0]
+    if (!file) return
+    const syntheticEvent = { dataTransfer: { files: [file] } }
+    handleImageUpload(syntheticEvent)
   }
 
   const openCreateModal = () => {
@@ -375,7 +378,7 @@ export default function AdminDashboard() {
                             <div className="flex items-center">
                               {property.images && property.images.length > 0 && (
                                 <img 
-                                  src={property.images[0]} 
+                                  src={getAssetUrl(property.images[0])} 
                                   alt={property.title}
                                   className="h-12 w-12 rounded-lg object-cover mr-3"
                                 />
@@ -677,7 +680,13 @@ export default function AdminDashboard() {
                       id="image-upload"
                       disabled={uploading}
                     />
-                    <label htmlFor="image-upload" className="cursor-pointer">
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer block"
+                      onDrop={handleImageDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={(e) => e.preventDefault()}
+                    >
                       <div className="text-gray-600">
                         {uploading ? (
                           <span className="text-blue-600">Uploading...</span>
@@ -697,7 +706,7 @@ export default function AdminDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {formData.images.split(',').filter(Boolean).map((img, idx) => (
                           <div key={idx} className="relative group">
-                            <img src={img} alt={`Upload ${idx + 1}`} className="h-16 w-16 object-cover rounded-lg" />
+                            <img src={getAssetUrl(img)} alt={`Upload ${idx + 1}`} className="h-16 w-16 object-cover rounded-lg" />
                             <button
                               type="button"
                               onClick={() => {

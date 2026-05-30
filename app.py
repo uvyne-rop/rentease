@@ -46,6 +46,13 @@ def env_origins(*keys):
     return origins
 
 
+def external_url(path):
+    backend_url = normalize_origin(get_env('BACKEND_URL', ''))
+    if backend_url:
+        return f'{backend_url}{path}'
+    return path
+
+
 def parse_bool(value, default=False):
     if value is None:
         return default
@@ -1016,7 +1023,7 @@ def admin_upload_image():
         # 3) Fallback to local temp storage
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
-        return jsonify({'url': f'/api/uploads/{filename}', 'filename': filename}), 200
+        return jsonify({'url': external_url(f'/api/uploads/{filename}'), 'filename': filename}), 200
     return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
 
 @app.route('/api/uploads/<filename>')

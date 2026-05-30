@@ -5,4 +5,11 @@ export function getApiUrl(endpoint) {
   return `${API_URL}${endpoint}`
 }
 
+export function getAssetUrl(url) {
+  if (!url || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url
+  }
+  return getApiUrl(url.startsWith('/') ? url : `/${url}`)
+}
+
 export default API_URL
