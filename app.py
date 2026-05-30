@@ -90,7 +90,13 @@ CORS(app, supports_credentials=True, origins=ALLOWED_ORIGINS)
 @app.after_request
 def add_cors_headers(response):
     origin = normalize_origin(request.headers.get('Origin', ''))
-    if origin in ALLOWED_ORIGINS:
+    dynamic_origins = list(set([
+        *ALLOWED_ORIGINS,
+        *env_origins('FRONTEND_URL', 'FRONTEND_URLS'),
+    ]))
+    # Allow any vercel.app subdomain (covers preview deployments too)
+    is_allowed = origin in dynamic_origins or (origin and 'vercel.app' in origin)
+    if is_allowed:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
