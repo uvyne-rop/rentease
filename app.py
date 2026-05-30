@@ -127,9 +127,20 @@ def handle_preflight():
 @app.errorhandler(Exception)
 def handle_unexpected_error(error):
     if isinstance(error, HTTPException):
-        return error
+        response = error.get_response()
+        origin = normalize_origin(request.headers.get('Origin', ''))
+        if origin and 'vercel.app' in origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
     print(f'Unhandled backend error: {str(error)}')
-    return jsonify({'error': 'Internal server error. Check backend logs.'}), 500
+    from flask import make_response
+    response = make_response(jsonify({'error': 'Internal server error. Check backend logs.'}), 500)
+    origin = normalize_origin(request.headers.get('Origin', ''))
+    if origin and 'vercel.app' in origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 # ── EMAIL CONFIGURATION ────────────────────────────────────────────────────
 app.config['MAIL_SERVER'] = get_env('MAIL_SERVER', 'smtp.gmail.com')
