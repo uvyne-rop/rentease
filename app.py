@@ -618,9 +618,7 @@ def verify_email():
     execute(c, 'UPDATE users SET email_verified=1, verification_code=NULL WHERE id=?', (user['id'],))
     conn.commit()
     conn.close()
-    session['user_id'] = user['id']
-    session['username'] = user['username']
-    return jsonify({'message': 'Email verified successfully!', 'username': user['username']}), 200
+    return jsonify({'message': 'Email verified successfully! Please sign in.'}), 200
 
 @app.route('/api/auth/resend-verification', methods=['POST'])
 def resend_verification():

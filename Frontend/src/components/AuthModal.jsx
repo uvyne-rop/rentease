@@ -38,8 +38,8 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
         setMode('login')
       } else if (mode === 'verify') {
         const data = await verifyEmail(form.email, form.verification_code)
-        toast.show(data.message, 'success')
-        onClose()
+        toast.show(data.message || 'Email verified! Please sign in.', 'success')
+        setMode('login')
       }
     } catch (err) {
       const message = err.message || 'Something went wrong.'
