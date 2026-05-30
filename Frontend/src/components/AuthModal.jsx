@@ -39,11 +39,7 @@ export default function AuthModal({ mode: initialMode = 'login', onClose }) {
         setMode('login')
       }
     } catch (err) {
-      const message = err.message || 'Something went wrong.'
-      setError(message)
-      if (mode === 'login' && message.includes('verify')) {
-        setMode('verify')
-      }
+      setError(err.message || 'Something went wrong.')
     } finally {
       setLoading(false)
     }

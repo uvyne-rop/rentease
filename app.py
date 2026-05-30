@@ -570,8 +570,6 @@ def login():
     # SECURITY FIX: Generic error prevents username enumeration attacks
     if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({'error': 'Invalid username or password.'}), 401
-    if user['email_verified'] != 1:
-        return jsonify({'error': 'Please verify your email before signing in.'}), 403
     session['user_id'] = user['id']
     session['username'] = user['username']
     return jsonify({'message': 'Welcome back!', 'username': user['username']}), 200
