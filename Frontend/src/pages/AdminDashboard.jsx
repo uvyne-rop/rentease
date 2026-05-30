@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
@@ -22,6 +22,7 @@ export default function AdminDashboard() {
     amenities: '', features: '', images: ''
   })
   const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!loading && (!user || !user.is_admin)) {
@@ -87,22 +88,31 @@ export default function AdminDashboard() {
     }))
   }
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0]
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (file) uploadFile(file)
+  }
+
+  const handleImageDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (uploading) return
+    const file = e.dataTransfer?.files?.[0]
     if (!file) return
-    
+    uploadFile(file)
+  }
+
+  const uploadFile = async (file) => {
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      
+      const fd = new FormData()
+      fd.append('file', file)
       const res = await fetch(getApiUrl('/api/admin/upload'), {
         method: 'POST',
         credentials: 'include',
-        body: formData
+        body: fd
       })
       const data = await res.json()
-      
       if (res.ok) {
         setFormData(prev => ({
           ...prev,
@@ -112,22 +122,12 @@ export default function AdminDashboard() {
       } else {
         showToast(data.error || 'Upload failed', 'error')
       }
-    } catch (err) {
+    } catch {
       showToast('Failed to upload image', 'error')
     } finally {
       setUploading(false)
-      if (e.target.value) e.target.value = ''
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
-  }
-
-  const handleImageDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (uploading) return
-    const file = e.dataTransfer?.files?.[0]
-    if (!file) return
-    const syntheticEvent = { dataTransfer: { files: [file] } }
-    handleImageUpload(syntheticEvent)
   }
 
   const openCreateModal = () => {
@@ -670,35 +670,28 @@ export default function AdminDashboard() {
                     onDrop={handleImageDrop}
                     onDragOver={(e) => e.preventDefault()}
                     onDragEnter={(e) => e.preventDefault()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition"
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition cursor-pointer"
                   >
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
                       className="hidden"
-                      id="image-upload"
                       disabled={uploading}
                     />
-                    <label
-                      htmlFor="image-upload"
-                      className="cursor-pointer block"
-                      onDrop={handleImageDrop}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDragEnter={(e) => e.preventDefault()}
-                    >
-                      <div className="text-gray-600">
-                        {uploading ? (
-                          <span className="text-blue-600">Uploading...</span>
-                        ) : (
-                          <>
-                            <span className="text-blue-600 hover:text-blue-800">Click to upload</span>
-                            <span className="text-gray-500"> or drag and drop</span>
-                            <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 10MB</p>
-                          </>
-                        )}
-                      </div>
-                    </label>
+                    <div className="text-gray-600 pointer-events-none">
+                      {uploading ? (
+                        <span className="text-blue-600">Uploading...</span>
+                      ) : (
+                        <>
+                          <span className="text-blue-600">Click to upload</span>
+                          <span className="text-gray-500"> or drag and drop</span>
+                          <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 10MB</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                   {formData.images && (
                     <div className="mt-3">
