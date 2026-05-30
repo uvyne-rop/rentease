@@ -88,7 +88,7 @@ export default function AdminDashboard() {
   }
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
+    const file = e.target.files?.[0] || e.dataTransfer?.files?.[0]
     if (!file) return
     
     setUploading(true)
@@ -116,7 +116,15 @@ export default function AdminDashboard() {
       showToast('Failed to upload image', 'error')
     } finally {
       setUploading(false)
+      if (e.target.value) e.target.value = ''
     }
+  }
+
+  const handleImageDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (uploading) return
+    handleImageUpload(e)
   }
 
   const openCreateModal = () => {
@@ -655,7 +663,12 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <div
+                    onDrop={handleImageDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDragEnter={(e) => e.preventDefault()}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition"
+                  >
                     <input
                       type="file"
                       accept="image/*"
