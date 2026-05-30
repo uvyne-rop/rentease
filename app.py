@@ -34,6 +34,17 @@ def normalize_origin(origin):
     return origin.strip().rstrip('/')
 
 
+def env_origins(*keys):
+    origins = []
+    for key in keys:
+        value = get_env(key, '')
+        for origin in value.split(','):
+            normalized = normalize_origin(origin)
+            if normalized:
+                origins.append(normalized)
+    return origins
+
+
 def parse_bool(value, default=False):
     if value is None:
         return default
@@ -60,8 +71,8 @@ ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:5000',
     'http://127.0.0.1:5000',
-    normalize_origin(get_env('FRONTEND_URL', '')),
     normalize_origin(get_env('BACKEND_URL', '')),
+    *env_origins('FRONTEND_URL', 'FRONTEND_URLS'),
 ]
 ALLOWED_ORIGINS = [origin for origin in ALLOWED_ORIGINS if origin]
 
