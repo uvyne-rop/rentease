@@ -66,7 +66,7 @@ export default function AdminDashboard() {
     const { name, value, type } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? parseInt(value) || 0 : value
+      [name]: type === 'number' ? Number(value) || 0 : value
     }))
   }
 
@@ -104,6 +104,7 @@ export default function AdminDashboard() {
 
   const openCreateModal = () => {
     setEditingProperty(null)
+    setActiveTab('properties')
     setFormData({
       title: '', description: '', price: '', price_period: 'month', type: '',
       category: 'for-rent', bedrooms: 0, bathrooms: 0, area_sqft: '',
@@ -139,6 +140,17 @@ export default function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      const payload = {
+        ...formData,
+        price: Number(formData.price) || 0,
+        bedrooms: Number(formData.bedrooms) || 0,
+        bathrooms: Number(formData.bathrooms) || 0,
+        area_sqft: formData.area_sqft === '' ? null : Number(formData.area_sqft) || 0,
+        featured: Number(formData.featured) || 0,
+        amenities: String(formData.amenities || '').trim(),
+        features: String(formData.features || '').trim(),
+        images: String(formData.images || '').trim()
+      }
       const url = editingProperty 
         ? getApiUrl(`/api/admin/properties/${editingProperty.id}`)
         : getApiUrl('/api/admin/properties')
@@ -148,19 +160,20 @@ export default function AdminDashboard() {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       
       if (res.ok) {
         showToast(data.message, 'success')
         setShowModal(false)
         fetchData()
       } else {
-        showToast(data.error, 'error')
+        showToast(data.error || `Failed to save property (${res.status})`, 'error')
       }
     } catch (err) {
-      showToast('Failed to save property', 'error')
+      console.error('Failed to save property:', err)
+      showToast('Failed to save property. Check your connection and admin session.', 'error')
     }
   }
 
@@ -245,6 +258,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={fetchData}
               className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
               title="Refresh data"
@@ -252,6 +266,7 @@ export default function AdminDashboard() {
               ↻ Refresh
             </button>
             <button
+              type="button"
               onClick={openCreateModal}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
@@ -263,6 +278,7 @@ export default function AdminDashboard() {
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
           <button
+            type="button"
             onClick={() => setActiveTab('properties')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'properties' 
@@ -273,6 +289,7 @@ export default function AdminDashboard() {
             Properties ({properties.length})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('users')}
             className={`px-4 py-2 rounded-lg font-medium transition ${
               activeTab === 'users' 
@@ -293,6 +310,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-500">{properties.length} saved properties</p>
               </div>
               <button
+                type="button"
                 onClick={openCreateModal}
                 className="w-full sm:w-auto bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
               >
@@ -305,6 +323,7 @@ export default function AdminDashboard() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties yet</h3>
                 <p className="text-gray-500 mb-5">Create the first rental listing for RentEase.</p>
                 <button
+                  type="button"
                   onClick={openCreateModal}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold"
                 >
@@ -355,12 +374,14 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <button
+                              type="button"
                               onClick={() => openEditModal(property)}
                               className="text-blue-600 hover:text-blue-800 mr-3"
                             >
                               Edit
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDelete(property.id)}
                               className="text-red-600 hover:text-red-800"
                             >
@@ -402,6 +423,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
+                          type="button"
                           onClick={() => toggleUserAdmin(u.id, u.is_admin)}
                           className="text-blue-600 hover:text-blue-800"
                         >
