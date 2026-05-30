@@ -22,6 +22,7 @@ export default function AdminDashboard() {
     amenities: '', features: '', images: ''
   })
   const [uploading, setUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function AdminDashboard() {
   const handleImageDrop = (e) => {
     e.preventDefault()
     e.stopPropagation()
+    setIsDragging(false)
     if (uploading) return
     const file = e.dataTransfer?.files?.[0]
     if (!file) return
@@ -668,10 +670,13 @@ export default function AdminDashboard() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Images</label>
                   <div
                     onDrop={handleImageDrop}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDragEnter={(e) => e.preventDefault()}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                    onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true) }}
+                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false) }}
                     onClick={() => !uploading && fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition cursor-pointer"
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition cursor-pointer ${
+                      isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+                    }`}
                   >
                     <input
                       ref={fileInputRef}
